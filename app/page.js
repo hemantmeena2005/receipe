@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TextField, Button, Card, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Drawer, List, ListItem, ListItemText, ListItemIcon, Divider } from '@mui/material';
+import { TextField, Button, Card, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Drawer, List, ListItem, ListItemText, ListItemIcon, Divider, Typography, Box } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import MenuIcon from '@mui/icons-material/Menu';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import StopIcon from '@mui/icons-material/Stop';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 export default function Home() {
   const [ingredients, setIngredients] = useState('');
@@ -24,6 +27,8 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentChat, setCurrentChat] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [copySuccess, setCopySuccess] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
@@ -122,6 +127,16 @@ export default function Home() {
     setRecipe(chat.recipe);
   };
 
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess('Copied!');
+      setTimeout(() => setCopySuccess(''), 2000);
+    } catch (err) {
+      setCopySuccess('Failed to copy');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -129,13 +144,23 @@ export default function Home() {
     setRecipe('');
 
     try {
+      const prompt = `Create a simple Indian recipe using these ingredients: ${ingredients}. 
+      Please write the recipe in clear, easy-to-follow steps.
+      Include common Indian cooking terms and measurements.
+      Make it sound like a typical Indian home recipe.`;
+
       const response = await fetch('/api/recipe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` }),
         },
-        body: JSON.stringify({ ingredients }),
+        body: JSON.stringify({ 
+          ingredients,
+          prompt,
+          cuisine: 'indian',
+          style: 'home_style'
+        }),
       });
 
       const data = await response.json();
@@ -177,6 +202,22 @@ export default function Home() {
     } catch (error) {
       console.error('Error deleting recipe:', error);
     }
+  };
+
+  const speakText = (text, lang = 'en-IN') => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
   };
 
   return (
@@ -296,27 +337,86 @@ export default function Home() {
         <div className="max-w-2xl mx-auto">
           {!user ? (
             <div className="text-center">
-              <h1 className="text-3xl md:text-4xl font-bold mb-8 text-gray-800">
-                AI Recipe Generator
-              </h1>
-              <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                onClick={() => setShowAuth(true)}
-              >
-                Login / Signup to Start
-              </Button>
+              <div className="mb-8">
+                <div className="relative w-full h-64 mb-8 rounded-xl overflow-hidden">
+                  <img 
+                    src="https://plus.unsplash.com/premium_photo-1673590981810-894dadc93a6d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8Zm9vZCUyMGltYWdlc3xlbnwwfHwwfHx8MA%3D%3D"
+                    alt="Delicious Food" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                    <h1 className="text-4xl md:text-5xl font-bold text-white">
+                      AI Recipe Generator
+                    </h1>
+                  </div>
+                </div>
+                <p className="text-lg text-gray-600 mb-8 max-w-lg mx-auto">
+                  Transform your ingredients into delicious Indian recipes with our AI-powered recipe generator. 
+                  Get step-by-step instructions and cooking tips instantly!
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                  <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="relative h-40 mb-4 rounded-lg overflow-hidden">
+                      <img 
+                        src="https://images.unsplash.com/photo-1598214886806-c87b84b7078b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Zm9vZCUyMGltYWdlc3xlbnwwfHwwfHx8MA%3D%3D"
+                        alt="Ingredients" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-xl text-gray-800 mb-2">Add Ingredients</h3>
+                    <p className="text-gray-600">List what you have in your kitchen</p>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="relative h-40 mb-4 rounded-lg overflow-hidden">
+                      <img 
+                        src="https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8Zm9vZCUyMGltYWdlc3xlbnwwfHwwfHx8MA%3D%3D"
+                        alt="Recipe" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-xl text-gray-800 mb-2">Get Recipe</h3>
+                    <p className="text-gray-600">AI generates perfect instructions</p>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="relative h-40 mb-4 rounded-lg overflow-hidden">
+                      <img 
+                        src="https://plus.unsplash.com/premium_photo-1673590981810-894dadc93a6d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8Zm9vZCUyMGltYWdlc3xlbnwwfHwwfHx8MA%3D%3D"
+                        alt="Cook" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-xl text-gray-800 mb-2">Start Cooking</h3>
+                    <p className="text-gray-600">Follow easy steps to create magic</p>
+                  </div>
+                </div>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  onClick={() => setShowAuth(true)}
+                  className="h-14 px-8 text-lg hover:scale-105 transition-transform"
+                >
+                  Get Started
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="mt-8">
+              <div className="mb-8 text-center">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+                  Create Your Recipe
+                </h2>
+                <p className="text-gray-600">
+                  Enter your ingredients and let AI create a delicious recipe for you
+                </p>
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <TextField
                   fullWidth
                   multiline
                   rows={4}
                   variant="outlined"
-                  label="Enter your ingredients (one per line)"
+                  label="Enter ingredients (e.g., potatoes, cauliflower, tomatoes)"
                   value={ingredients}
                   onChange={(e) => setIngredients(e.target.value)}
                   className="bg-white"
@@ -353,11 +453,37 @@ export default function Home() {
               {recipe && (
                 <Card className="mt-8 p-4 md:p-6 bg-white">
                   <div className="prose max-w-none">
+                    <div className="flex justify-between items-center mb-4">
+                      <Typography variant="h6" className="text-gray-900">
+                        Recipe
+                      </Typography>
+                      <div className="flex gap-2">
+                        <IconButton
+                          onClick={() => copyToClipboard(recipe)}
+                          className="text-gray-600 hover:text-gray-900"
+                          title="Copy recipe"
+                        >
+                          <ContentCopyIcon />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => speakText(recipe, 'en-IN')}
+                          className={`text-gray-600 hover:text-gray-900 ${isSpeaking ? 'text-blue-600' : ''}`}
+                          title={isSpeaking ? 'Stop reading' : 'Listen to recipe'}
+                        >
+                          {isSpeaking ? <StopIcon /> : <VolumeUpIcon />}
+                        </IconButton>
+                      </div>
+                    </div>
                     {recipe.split('\n').map((line, index) => (
                       <p key={index} className="mb-2 text-gray-900">
                         {line}
                       </p>
                     ))}
+                    {copySuccess && (
+                      <Typography className="text-green-600 text-sm mt-2">
+                        {copySuccess}
+                      </Typography>
+                    )}
                   </div>
                 </Card>
               )}
