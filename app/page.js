@@ -7,8 +7,7 @@ import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
+import MenuIcon from '@mui/icons-material/Menu';
 
 export default function Home() {
   const [ingredients, setIngredients] = useState('');
@@ -24,28 +23,28 @@ export default function Home() {
   const [recipeHistory, setRecipeHistory] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentChat, setCurrentChat] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     if (savedToken && savedUser) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
       fetchRecipeHistory(savedToken);
     }
-    setDarkMode(savedDarkMode);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('darkMode', darkMode);
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      setSidebarOpen(window.innerWidth >= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchRecipeHistory = async (authToken) => {
     try {
@@ -181,59 +180,83 @@ export default function Home() {
   };
 
   return (
-    <div className={`flex h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="flex h-screen bg-gray-50">
+      {/* Top Navigation Bar */}
+      {user && (
+        <div className="fixed top-0 left-0 right-0 h-14 bg-white shadow-sm z-40 flex items-center justify-between px-4">
+          <IconButton
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="text-gray-600"
+          >
+            <MenuIcon />
+          </IconButton>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              size="small"
+              onClick={handleNewChat}
+            >
+              New Chat
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       {user && (
         <Drawer
-          variant="persistent"
+          variant={isMobile ? "temporary" : "persistent"}
           anchor="left"
           open={sidebarOpen}
-          className="w-64"
+          onClose={() => isMobile && setSidebarOpen(false)}
+          className={`${isMobile ? 'w-[280px]' : 'w-64'}`}
           classes={{
-            paper: `w-64 ${darkMode ? 'bg-gray-800' : 'bg-white'}`,
+            paper: `${isMobile ? 'w-[280px]' : 'w-64'} bg-white`,
           }}
         >
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-4 bg-white">
+            <div className="mb-4">
               <Button
                 variant="contained"
                 color="primary"
                 startIcon={<AddIcon />}
-                onClick={handleNewChat}
+                onClick={() => {
+                  handleNewChat();
+                  isMobile && setSidebarOpen(false);
+                }}
+                fullWidth
               >
                 New Chat
               </Button>
-              <IconButton onClick={() => setDarkMode(!darkMode)} color="inherit">
-                {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-              </IconButton>
             </div>
-            <Divider className={darkMode ? 'bg-gray-700' : 'bg-gray-200'} />
-            <List>
+            <Divider className="bg-gray-200" />
+            <List className="bg-white">
               {recipeHistory.map((chat) => (
                 <ListItem
                   key={chat._id}
-                  onClick={() => handleSelectChat(chat)}
+                  onClick={() => {
+                    handleSelectChat(chat);
+                    isMobile && setSidebarOpen(false);
+                  }}
                   className={`cursor-pointer transition-colors duration-200 ${
                     currentChat?._id === chat._id
-                      ? darkMode
-                        ? 'bg-gray-700'
-                        : 'bg-blue-50'
-                      : darkMode
-                      ? 'hover:bg-gray-700'
+                      ? 'bg-blue-50'
                       : 'hover:bg-gray-100'
                   }`}
                 >
                   <ListItemIcon>
-                    <HistoryIcon className={darkMode ? 'text-gray-300' : 'text-gray-600'} />
+                    <HistoryIcon className="text-gray-600" />
                   </ListItemIcon>
                   <ListItemText
                     primary={chat.ingredients.split('\n')[0]}
                     secondary={new Date(chat.createdAt).toLocaleDateString()}
                     primaryTypographyProps={{
-                      className: darkMode ? 'text-gray-100' : 'text-gray-900',
+                      className: 'text-gray-900 truncate',
                     }}
                     secondaryTypographyProps={{
-                      className: darkMode ? 'text-gray-400' : 'text-gray-500',
+                      className: 'text-gray-500',
                     }}
                   />
                   <IconButton
@@ -242,7 +265,7 @@ export default function Home() {
                       e.stopPropagation();
                       handleDeleteRecipe(chat._id);
                     }}
-                    className={darkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-600'}
+                    className="text-gray-500 hover:text-red-600"
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -250,18 +273,17 @@ export default function Home() {
               ))}
             </List>
           </div>
-          <div className={`mt-auto p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="mt-auto p-4 border-t border-gray-200 bg-white">
             <div className="flex items-center mb-4">
-              <PersonIcon className={`mr-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-              <span className={`text-sm ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>{user.email}</span>
+              <PersonIcon className="mr-2 text-gray-600" />
+              <span className="text-sm text-gray-900 truncate">{user.email}</span>
             </div>
             <Button
               variant="outlined"
-              color={darkMode ? 'inherit' : 'primary'}
+              color="primary"
               fullWidth
               startIcon={<LogoutIcon />}
               onClick={handleLogout}
-              className={darkMode ? 'text-gray-100 border-gray-600 hover:border-gray-500' : ''}
             >
               Logout
             </Button>
@@ -270,11 +292,11 @@ export default function Home() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      <main className={`flex-1 p-4 md:p-8 overflow-auto bg-gray-50 ${user ? 'pt-20' : ''}`}>
         <div className="max-w-2xl mx-auto">
           {!user ? (
             <div className="text-center">
-              <h1 className={`text-4xl font-bold mb-8 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+              <h1 className="text-3xl md:text-4xl font-bold mb-8 text-gray-800">
                 AI Recipe Generator
               </h1>
               <Button
@@ -287,7 +309,7 @@ export default function Home() {
               </Button>
             </div>
           ) : (
-            <>
+            <div className="mt-8">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <TextField
                   fullWidth
@@ -297,12 +319,12 @@ export default function Home() {
                   label="Enter your ingredients (one per line)"
                   value={ingredients}
                   onChange={(e) => setIngredients(e.target.value)}
-                  className={darkMode ? 'bg-gray-800' : 'bg-white'}
+                  className="bg-white"
                   InputProps={{
-                    className: darkMode ? 'text-gray-100' : 'text-gray-900',
+                    className: 'text-gray-900',
                   }}
                   InputLabelProps={{
-                    className: darkMode ? 'text-gray-400' : 'text-gray-700',
+                    className: 'text-gray-700',
                   }}
                 />
 
@@ -329,17 +351,17 @@ export default function Home() {
               )}
 
               {recipe && (
-                <Card className={`mt-8 p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                <Card className="mt-8 p-4 md:p-6 bg-white">
                   <div className="prose max-w-none">
                     {recipe.split('\n').map((line, index) => (
-                      <p key={index} className={`mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                      <p key={index} className="mb-2 text-gray-900">
                         {line}
                       </p>
                     ))}
                   </div>
                 </Card>
               )}
-            </>
+            </div>
           )}
         </div>
       </main>
@@ -349,10 +371,10 @@ export default function Home() {
         open={showAuth} 
         onClose={() => setShowAuth(false)}
         PaperProps={{
-          className: darkMode ? 'bg-gray-800' : 'bg-white',
+          className: 'bg-white w-full max-w-md mx-4',
         }}
       >
-        <DialogTitle className={darkMode ? 'text-gray-100' : 'text-gray-900'}>
+        <DialogTitle className="text-gray-900">
           {isLogin ? 'Login' : 'Sign Up'}
         </DialogTitle>
         <DialogContent>
@@ -364,12 +386,12 @@ export default function Home() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className={darkMode ? 'text-gray-100' : 'text-gray-900'}
+              className="text-gray-900"
               InputProps={{
-                className: darkMode ? 'text-gray-100' : 'text-gray-900',
+                className: 'text-gray-900',
               }}
               InputLabelProps={{
-                className: darkMode ? 'text-gray-400' : 'text-gray-700',
+                className: 'text-gray-700',
               }}
             />
             <TextField
@@ -379,21 +401,22 @@ export default function Home() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className={darkMode ? 'text-gray-100' : 'text-gray-900'}
+              className="text-gray-900"
               InputProps={{
-                className: darkMode ? 'text-gray-100' : 'text-gray-900',
+                className: 'text-gray-900',
               }}
               InputLabelProps={{
-                className: darkMode ? 'text-gray-400' : 'text-gray-700',
+                className: 'text-gray-700',
               }}
             />
             {error && (
               <div className="text-red-600 text-sm">{error}</div>
             )}
-            <DialogActions>
+            <DialogActions className="flex-col sm:flex-row gap-2">
               <Button
                 onClick={() => setIsLogin(!isLogin)}
                 color="primary"
+                fullWidth
               >
                 {isLogin ? 'Need an account? Sign up' : 'Already have an account? Login'}
               </Button>
@@ -402,6 +425,7 @@ export default function Home() {
                 variant="contained"
                 color="primary"
                 disabled={loading}
+                fullWidth
               >
                 {loading ? (
                   <CircularProgress size={24} color="inherit" />
